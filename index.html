@@ -408,6 +408,14 @@
         <div class="connection-status connected" id="connectionStatus">
             ✅ 后端服务已连接
         </div>
+        <div style="text-align:center; margin-bottom:15px; font-size:0.85em; color:#666;">
+            API地址: <span id="apiAddress" style="color:#00d4ff;">自动检测中...</span>
+            <button onclick="showApiInput()" style="margin-left:10px; padding:5px 10px; background:rgba(0,212,255,0.2); border:1px solid #00d4ff; border-radius:5px; color:#00d4ff; cursor:pointer;">修改</button>
+        </div>
+        <div id="apiInputDiv" style="display:none; text-align:center; margin-bottom:15px;">
+            <input type="text" id="apiInput" placeholder="如: http://192.168.1.100:5000" style="padding:8px 15px; border-radius:5px; border:1px solid #00d4ff; background:rgba(0,0,0,0.3); color:#fff; width:250px;">
+            <button onclick="saveApiAddress()" style="padding:8px 15px; background:#00d4ff; border:none; border-radius:5px; color:#000; cursor:pointer; margin-left:5px;">保存</button>
+        </div>
 
         <div class="stats">
             <div class="stat-item">
@@ -452,30 +460,58 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        // API配置
-        const API_BASE = 'http://localhost:5000';
+        // API配置 - 自动检测服务器地址
+        // 从URL参数或本地存储获取API地址
+        function getApiBase() {
+            // 1. 优先从URL参数获取 ?api=http://192.168.x.x:5000
+            const urlParams = new URLSearchParams(window.location.search);
+            const apiFromUrl = urlParams.get('api');
+            if (apiFromUrl) {
+                localStorage.setItem('api_base', apiFromUrl);
+                return apiFromUrl;
+            }
+            
+            // 2. 从本地存储获取
+            const apiFromStorage = localStorage.getItem('api_base');
+            if (apiFromStorage) {
+                return apiFromStorage;
+            }
+            
+            // 3. 默认使用 localhost
+            return 'http://localhost:5000';
+        }
         
-        // Fallback data when API is not available
+        let API_BASE = getApiBase();
+        
+        // 显示当前API地址（调试用）
+        console.log('当前API地址:', API_BASE);
+        
+        // Fallback data when API is not available - 使用真实可访问的新闻链接
         const fallbackData = {
             politics: [
-                {title: '2026年全国两会启幕', content: '十四届全国人大四次会议于3月正式拉开帷幕', source: '腾讯新闻', time: '03月18日 10:00', url: 'https://news.qq.com', hot: true, category: '时政要闻'},
-                {title: '国台办回应台海局势', content: '台湾是中国的领土，台湾问题是中国内政', source: '腾讯新闻', time: '03月17日 15:00', url: 'https://news.qq.com', hot: false, category: '时政要闻'}
+                {title: '2026年全国两会启幕', content: '十四届全国人大四次会议于3月5日在北京召开，全国政协十四届四次会议于3月4日开幕', source: '中公网校', time: '03月18日 10:00', url: 'https://www.eoffcn.com/kszx/detail/1992715.html', hot: true, category: '时政要闻'},
+                {title: '凝心聚力启新程', content: '2026年全国两会期间，习近平总书记统揽全局、引领航向，为"十五五"时期经济社会发展把脉定向', source: '昆明信息港', time: '03月17日 14:00', url: 'https://www.kunming.cn/news/c/2026-03-17/14025870.shtml', hot: true, category: '时政要闻'},
+                {title: '十四届全国人大四次会议记者会安排', content: '3月5日上午举行"代表通道"集中采访活动，6日下午举行经济主题记者会', source: '企鹅号', time: '03月05日 09:00', url: 'https://so.html5.qq.com/page/real/search_news?docid=70000021_15969a8132d20252', hot: false, category: '时政要闻'}
             ],
             tech: [
-                {title: '快舟十一号遥七火箭发射成功', content: '快舟十一号运载火箭在酒泉卫星发射中心发射升空', source: '腾讯新闻', time: '03月16日 12:00', url: 'https://news.qq.com', hot: true, category: '科技'},
-                {title: '欧洲核子研究中心发现全新粒子', content: '大型强子对撞机发现单电荷双粲重子', source: '川观新闻', time: '03月17日 08:00', url: 'https://cbgc.scol.com.cn', hot: false, category: '科技'}
+                {title: '快舟十一号遥七火箭一箭八星发射成功', content: '北京时间3月16日12时12分，快舟十一号运载火箭在酒泉卫星发射中心将8颗卫星送入预定轨道', source: '中国经济网', time: '03月16日 16:00', url: 'http://www.ce.cn/xwzx/gnsz/gdxw/202603/t20260316_2831262.shtml', hot: true, category: '科技'},
+                {title: '"太空加油站"试验星成功发射', content: '快舟十一号固体运载火箭在酒泉卫星发射中心点火升空，太阳翼成功展开', source: '科学网', time: '03月16日 14:00', url: 'http://news.sciencenet.cn/htmlnews/2026/3/561549.shtm', hot: true, category: '科技'},
+                {title: '快舟十一号遥七运载火箭发射保电任务', content: '国网酒泉供电公司圆满完成此次卫星发射供电保障任务', source: '澎湃新闻', time: '03月16日 15:00', url: 'https://www.thepaper.cn/newsDetail_forward_32782908', hot: false, category: '科技'}
             ],
             international: [
-                {title: '伊朗导弹袭击以色列', content: '伊朗发起"真实承诺-4"行动，使用"泥石"弹道导弹', source: '腾讯新闻', time: '03月16日 20:00', url: 'https://news.qq.com', hot: true, category: '国际'},
-                {title: '多国回应霍尔木兹海峡护航', content: '德、法、日、英、澳等国表态不会派遣军舰', source: '腾讯新闻', time: '03月16日 18:00', url: 'https://news.qq.com', hot: true, category: '国际'}
+                {title: '伊朗导弹袭击以色列', content: '伊朗伊斯兰革命卫队发起"真实承诺-4"行动，首次使用"泥石"弹道导弹打击以色列', source: '腾讯新闻', time: '03月16日 20:00', url: 'https://new.qq.com/rain/a/20260316A064SM00', hot: true, category: '国际'},
+                {title: '多国回应霍尔木兹海峡护航要求', content: '德国明确表态不会参与，法国否认派军舰传闻，日本、韩国等国相继表示暂无派遣决定', source: '腾讯新闻', time: '03月16日 18:00', url: 'https://new.qq.com/rain/a/20260316A064SM00', hot: true, category: '国际'},
+                {title: '美国驻迪拜总领事馆遭伊朗无人机袭击', content: '美国驻阿联酋迪拜总领事馆遭无人机袭击导致起火，无人员伤亡报告', source: '腾讯新闻', time: '03月04日 10:00', url: 'https://new.qq.com/rain/a/20260304A068XQ00', hot: false, category: '国际'}
             ],
             finance: [
-                {title: '国际油价暴涨创六年新高', content: '纽约原油期货收于每桶74.56美元，涨幅4.67%', source: '腾讯新闻', time: '03月17日 09:00', url: 'https://news.qq.com', hot: true, category: '财经'},
-                {title: '中方提供中东人道主义援助', content: '中方决定向伊朗等国提供紧急人道主义援助', source: '川观新闻', time: '03月17日 14:00', url: 'https://cbgc.scol.com.cn', hot: false, category: '财经'}
+                {title: '国际油价暴涨创六年新高', content: '由于霍尔木兹海峡油轮运输停滞，纽约原油期货收于每桶74.56美元，涨幅4.67%', source: '腾讯新闻', time: '03月17日 09:00', url: 'https://new.qq.com/rain/a/20260304A068XQ00', hot: true, category: '财经'},
+                {title: '2026年全球银行品牌价值500强发布', content: '共70家中资银行入选，其中工行、建行、中行、农行位列前四', source: '网易', time: '03月07日 10:00', url: 'https://3g.163.com/dy/article/KNDDPAEM0545BKTK.html', hot: false, category: '财经'},
+                {title: '中方提供中东人道主义援助', content: '中方决定向伊朗、约旦、黎巴嫩、伊拉克四国提供紧急人道主义援助', source: '川观新闻', time: '03月17日 14:00', url: 'https://cbgc.scol.com.cn/news/7391618', hot: false, category: '财经'}
             ],
             infrastructure: [
-                {title: '广西苍容浔江大桥通车', content: '世界最大跨径独柱式三塔空间缆悬索桥', source: '今日头条', time: '03月01日 10:00', url: 'https://www.toutiao.com', hot: true, category: '基建'},
-                {title: '中国海警驱离日方渔船', content: '日方渔船非法进入钓鱼岛领海被驱离', source: '川观新闻', time: '03月17日 11:00', url: 'https://cbgc.scol.com.cn', hot: false, category: '民生'}
+                {title: '广西苍容浔江大桥正式通车', content: '目前世界最大跨径独柱式三塔空间缆悬索桥，全长1688米，主跨达520米', source: '今日头条', time: '03月01日 10:00', url: 'https://www.toutiao.com/article/7612235284998128171/', hot: true, category: '基建'},
+                {title: '中国海警依法驱离日方渔船', content: '日本"朝丸"号渔船非法进入中国钓鱼岛领海，中国海警依法警告驱离', source: '川观新闻', time: '03月17日 11:00', url: 'https://cbgc.scol.com.cn/news/7391618', hot: false, category: '民生'},
+                {title: '浙江八大流域全面进入禁渔期', content: '钱塘江、瓯江、椒江等八大流域3月1日起全面禁渔，保护水生生物资源', source: '今日头条', time: '03月01日 08:00', url: 'https://www.toutiao.com/article/7612235284998128171/', hot: false, category: '民生'}
             ]
         };
 
@@ -493,12 +529,33 @@
         // Update connection status
         function updateConnectionStatus(connected) {
             const status = document.getElementById('connectionStatus');
+            const apiAddr = document.getElementById('apiAddress');
+            apiAddr.textContent = API_BASE;
             if (connected) {
                 status.className = 'connection-status connected';
                 status.textContent = '✅ 后端服务已连接';
             } else {
                 status.className = 'connection-status disconnected';
                 status.textContent = '⚠️ 后端服务未连接，使用离线数据';
+            }
+        }
+        
+        // 显示API输入框
+        function showApiInput() {
+            document.getElementById('apiInputDiv').style.display = 'block';
+            document.getElementById('apiInput').value = API_BASE;
+        }
+        
+        // 保存API地址
+        function saveApiAddress() {
+            const newApi = document.getElementById('apiInput').value.trim();
+            if (newApi) {
+                API_BASE = newApi;
+                localStorage.setItem('api_base', newApi);
+                document.getElementById('apiInputDiv').style.display = 'none';
+                showToast('API地址已更新: ' + newApi, 'success');
+                // 重新连接
+                checkConnection();
             }
         }
 
